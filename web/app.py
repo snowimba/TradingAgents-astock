@@ -133,9 +133,10 @@ st.markdown(
 
 def _build_config() -> dict:
     config = DEFAULT_CONFIG.copy()
-    config["llm_provider"] = st.session_state.get("llm_provider", "minimax")
-    config["deep_think_llm"] = st.session_state.get("deep_think_llm", "MiniMax-M2.7")
-    config["quick_think_llm"] = st.session_state.get("quick_think_llm", "MiniMax-M2.7-highspeed")
+    config["llm_provider"] = st.session_state.get("llm_provider", config["llm_provider"])
+    config["deep_think_llm"] = st.session_state.get("deep_think_llm", config["deep_think_llm"])
+    config["quick_think_llm"] = st.session_state.get("quick_think_llm", config["quick_think_llm"])
+    config["backend_url"] = st.session_state.get("backend_url", config.get("backend_url"))
     config["data_vendors"] = {
         "core_stock_apis": "a_stock",
         "technical_indicators": "a_stock",
@@ -143,9 +144,9 @@ def _build_config() -> dict:
         "news_data": "a_stock",
         "signal_data": "a_stock",
     }
-    config["max_debate_rounds"] = 1
-    config["max_risk_discuss_rounds"] = 1
-    config["output_language"] = "Chinese"
+    config["max_debate_rounds"] = config.get("max_debate_rounds", 1)
+    config["max_risk_discuss_rounds"] = config.get("max_risk_discuss_rounds", 1)
+    config["output_language"] = config.get("output_language", "Chinese")
     return config
 
 

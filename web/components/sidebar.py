@@ -6,6 +6,7 @@ from datetime import date
 
 import streamlit as st
 
+from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 from web.history import get_history
 
@@ -41,18 +42,36 @@ def _resolve_user_input(raw: str) -> tuple[str, str | None]:
         return "", str(e)
 
 
+def _model_index(options: list[tuple[str, str]], configured_model: str | None) -> int:
+    values = [value for _, value in options]
+    if configured_model in values:
+        return values.index(configured_model)
+    return 0
+
+
 def _render_llm_config() -> None:
     """Render LLM provider and model selection controls."""
+
+    configured_provider = DEFAULT_CONFIG.get("llm_provider", "minimax")
+    default_provider_idx = (
+        _PROVIDER_KEYS.index(configured_provider)
+        if configured_provider in _PROVIDER_KEYS
+        else 0
+    )
 
     provider_idx = st.selectbox(
         "LLM 供应商",
         range(len(_PROVIDERS)),
+        index=default_provider_idx,
         format_func=lambda i: _PROVIDER_DISPLAY[i],
         key="llm_provider_idx",
         help="选择你配置了 API Key 的供应商",
     )
     provider_key = _PROVIDER_KEYS[provider_idx]
     st.session_state["llm_provider"] = provider_key
+
+    backend_url = DEFAULT_CONFIG.get("backend_url") if provider_key == configured_provider else None
+    st.session_state["backend_url"] = backend_url
 
     if provider_key in MODEL_OPTIONS:
         quick_options = MODEL_OPTIONS[provider_key]["quick"]
@@ -66,6 +85,7 @@ def _render_llm_config() -> None:
         quick_idx = st.selectbox(
             "快速思考模型",
             range(len(quick_options)),
+            index=_model_index(quick_options, DEFAULT_CONFIG.get("quick_think_llm")),
             format_func=lambda i: quick_labels[i],
             key="quick_model_idx",
             help="用于常规分析任务，速度优先",
@@ -75,16 +95,30 @@ def _render_llm_config() -> None:
         deep_idx = st.selectbox(
             "深度思考模型",
             range(len(deep_options)),
+            index=_model_index(deep_options, DEFAULT_CONFIG.get("deep_think_llm")),
             format_func=lambda i: deep_labels[i],
             key="deep_model_idx",
             help="用于辩论/决策等需要深度推理的任务",
         )
         st.session_state["deep_think_llm"] = deep_values[deep_idx]
     else:
-        custom_quick = st.text_input("快速思考模型 ID", key="custom_quick_model")
-        custom_deep = st.text_input("深度思考模型 ID", key="custom_deep_model")
+        custom_quick = st.text_input(
+            "快速思考模型 ID",
+            value=DEFAULT_CONFIG.get("quick_think_llm", ""),
+            key="custom_quick_model",
+        )
+        custom_deep = st.text_input(
+            "深度思考模型 ID",
+            value=DEFAULT_CONFIG.get("deep_think_llm", ""),
+            key="custom_deep_model",
+        )
         st.session_state["quick_think_llm"] = custom_quick
         st.session_state["deep_think_llm"] = custom_deep
+
+    if backend_url:
+        st.caption(f"API 中转: {backend_url}")
+    elif DEFAULT_CONFIG.get("backend_url"):
+        st.caption("API 中转: 未使用，当前供应商走默认接口")
 
 
 def render_sidebar() -> None:

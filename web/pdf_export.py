@@ -26,6 +26,10 @@ def _find_cjk_font() -> str | None:
     return None
 
 
+def _wrap_long_tokens(text: str, max_len: int = 40) -> str:
+    return re.sub(r"\S{%d,}" % max_len, lambda m: " ".join(m.group(0)[i:i + max_len] for i in range(0, len(m.group(0)), max_len)), text)
+
+
 def _strip_think(text: str) -> str:
     return re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL).strip()
 
@@ -203,7 +207,7 @@ class _ReportPDF(FPDF):
                     bullet = f"  {m.group(1)} "
                     body = m.group(2)
                 body = _strip_md_inline(body)
-                self.multi_cell(0, 5.5, bullet + body)
+                self.multi_cell(0, 5.5, _wrap_long_tokens(bullet + body))
                 i += 1
                 continue
 
@@ -216,7 +220,7 @@ class _ReportPDF(FPDF):
                 self._use_font("", 9)
                 self.set_text_color(60, 60, 60)
                 cells = [c.strip() for c in stripped.strip("|").split("|")]
-                row_text = "    ".join(_strip_md_inline(c) for c in cells)
+                row_text = _wrap_long_tokens("    ".join(_strip_md_inline(c) for c in cells))
                 self.multi_cell(0, 5, row_text)
                 i += 1
                 continue
@@ -234,7 +238,7 @@ class _ReportPDF(FPDF):
                 self._use_font("", 10)
                 self.set_text_color(40, 40, 40)
                 para = " ".join(para_lines)
-                para = _strip_md_inline(para)
+                para = _wrap_long_tokens(_strip_md_inline(para))
                 self.multi_cell(0, 5.5, para)
                 self.ln(2)
                 continue
