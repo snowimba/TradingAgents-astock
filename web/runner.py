@@ -8,6 +8,16 @@ from typing import Any
 
 from web.progress import PIPELINE_STAGES, ProgressTracker
 
+# Module-level tracker registry — persists across Streamlit sessions
+# within the same server process, so the UI can reconnect after a page
+# refresh.  Keyed by "ticker_tradeDate".
+_TRACKERS: dict[str, ProgressTracker] = {}
+
+
+def get_tracker(task_key: str) -> ProgressTracker | None:
+    """Look up a running/completed tracker by task key."""
+    return _TRACKERS.get(task_key)
+
 
 _REPORT_KEY_TO_STAGE = {s["report_key"]: s["id"] for s in PIPELINE_STAGES}
 
@@ -108,10 +118,12 @@ def run_analysis_in_thread(
     tracker: ProgressTracker,
 ) -> threading.Thread:
     """Launch the pipeline in a daemon thread. Returns the thread handle."""
+    task_key = f"{ticker}_{trade_date}"
     tracker.ticker = ticker
     tracker.trade_date = trade_date
     tracker.is_running = True
     tracker.mark_stage_active("market")
+    _TRACKERS[task_key] = tracker
 
     def _target() -> None:
         try:

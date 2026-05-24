@@ -22,7 +22,7 @@ from web.components.report_viewer import render_report  # noqa: E402
 from web.components.sidebar import render_sidebar  # noqa: E402
 from web.history import extract_signal, load_analysis  # noqa: E402
 from web.progress import ProgressTracker  # noqa: E402
-from web.runner import run_analysis_in_thread  # noqa: E402
+from web.runner import get_tracker, run_analysis_in_thread  # noqa: E402
 
 # ── Page config ──────────────────────────────────────────────────────────────
 
@@ -158,13 +158,23 @@ with st.sidebar:
 
 # ── Handle "Start Analysis" trigger ──────────────────────────────────────────
 
+# Reconnect to a running task after page refresh (module-level _TRACKERS
+# survives Streamlit session resets within the same server process).
+task_key = st.query_params.get("task")
+if task_key and not st.session_state.get("tracker"):
+    tracker = get_tracker(task_key)
+    if tracker is not None:
+        st.session_state["tracker"] = tracker
+
 start_req = st.session_state.pop("start_analysis", None)
 if start_req:
+    task_key = f"{start_req['ticker']}_{start_req['trade_date']}"
     tracker = ProgressTracker(
         ticker=start_req["ticker"],
         trade_date=start_req["trade_date"],
     )
     st.session_state["tracker"] = tracker
+    st.query_params["task"] = task_key
     run_analysis_in_thread(
         ticker=start_req["ticker"],
         trade_date=start_req["trade_date"],
