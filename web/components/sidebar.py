@@ -21,6 +21,7 @@ _PROVIDERS: list[tuple[str, str]] = [
     ("Google Gemini", "google"),
     ("xAI Grok", "xai"),
     ("Ollama（本地）", "ollama"),
+    ("自定义 API 中转", "custom"),
 ]
 
 _PROVIDER_DISPLAY = [name for name, _ in _PROVIDERS]
@@ -53,11 +54,15 @@ def _render_llm_config() -> None:
     """Render LLM provider and model selection controls."""
 
     configured_provider = DEFAULT_CONFIG.get("llm_provider", "minimax")
-    default_provider_idx = (
-        _PROVIDER_KEYS.index(configured_provider)
-        if configured_provider in _PROVIDER_KEYS
-        else 0
-    )
+    configured_backend = DEFAULT_CONFIG.get("backend_url")
+
+    # If user configured OpenAI with a custom backend, default to "自定义"
+    if configured_provider == "openai" and configured_backend and "custom" in _PROVIDER_KEYS:
+        default_provider_idx = _PROVIDER_KEYS.index("custom")
+    elif configured_provider in _PROVIDER_KEYS:
+        default_provider_idx = _PROVIDER_KEYS.index(configured_provider)
+    else:
+        default_provider_idx = 0
 
     provider_idx = st.selectbox(
         "LLM 供应商",
@@ -68,9 +73,34 @@ def _render_llm_config() -> None:
         help="选择你配置了 API Key 的供应商",
     )
     provider_key = _PROVIDER_KEYS[provider_idx]
-    st.session_state["llm_provider"] = provider_key
 
-    backend_url = DEFAULT_CONFIG.get("backend_url") if provider_key == configured_provider else None
+    # ── Custom API proxy ────────────────────────────────────────────
+    if provider_key == "custom":
+        st.session_state["llm_provider"] = "openai"
+        st.session_state["backend_url"] = configured_backend
+
+        quick_model = st.text_input(
+            "快速思考模型 ID",
+            value=DEFAULT_CONFIG.get("quick_think_llm", ""),
+            key="custom_quick_model",
+            help="自定义模型 ID，通过 API 中转调用",
+        )
+        deep_model = st.text_input(
+            "深度思考模型 ID",
+            value=DEFAULT_CONFIG.get("deep_think_llm", ""),
+            key="custom_deep_model",
+            help="自定义模型 ID，通过 API 中转调用",
+        )
+        st.session_state["quick_think_llm"] = quick_model
+        st.session_state["deep_think_llm"] = deep_model
+
+        if configured_backend:
+            st.caption(f"API 中转: {configured_backend}")
+        return
+
+    # ── Standard providers ──────────────────────────────────────────
+    st.session_state["llm_provider"] = provider_key
+    backend_url = configured_backend if provider_key == configured_provider else None
     st.session_state["backend_url"] = backend_url
 
     if provider_key in MODEL_OPTIONS:
@@ -117,7 +147,7 @@ def _render_llm_config() -> None:
 
     if backend_url:
         st.caption(f"API 中转: {backend_url}")
-    elif DEFAULT_CONFIG.get("backend_url"):
+    elif configured_backend:
         st.caption("API 中转: 未使用，当前供应商走默认接口")
 
 
