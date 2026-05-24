@@ -14,6 +14,7 @@ echo ""
 
 # ── 1. 检查 Python 版本 ──────────────────────────────────────────
 echo "[1/6] 检查 Python 版本..."
+PYTHON_VERSION="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 python3 -c "import sys; assert sys.version_info >= (3, 10), 'Python 3.10+ required'" 2>/dev/null || {
     echo "❌ 需要 Python 3.10+，当前版本: $(python3 --version 2>&1)"
     echo "   安装方法: apt install python3.12 python3.12-venv  (Ubuntu/Debian)"
@@ -27,6 +28,22 @@ echo "[2/6] 创建虚拟环境..."
 if [ -d "$VENV_DIR" ]; then
     echo "   ✓ 虚拟环境已存在，跳过"
 else
+    # ensurepip is not always available on minimal VPS installs
+    if ! python3 -c "import ensurepip" 2>/dev/null; then
+        echo "   - 缺少 python3-venv，尝试安装..."
+        if command -v apt &>/dev/null; then
+            sudo apt update -qq && sudo apt install -y -qq "python${PYTHON_VERSION}-venv"
+        elif command -v yum &>/dev/null; then
+            sudo yum install -y "python${PYTHON_VERSION}-venv"
+        elif command -v dnf &>/dev/null; then
+            sudo dnf install -y "python${PYTHON_VERSION}-venv"
+        else
+            echo "❌ 无法自动安装 python3-venv，请手动执行:"
+            echo "   apt install python${PYTHON_VERSION}-venv"
+            exit 1
+        fi
+        echo "   ✓ python${PYTHON_VERSION}-venv 已安装"
+    fi
     python3 -m venv "$VENV_DIR"
     echo "   ✓ 虚拟环境已创建"
 fi
