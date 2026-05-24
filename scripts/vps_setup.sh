@@ -25,9 +25,11 @@ echo "   ✓ $(python3 --version)"
 
 # ── 2. 创建虚拟环境 ──────────────────────────────────────────────
 echo "[2/6] 创建虚拟环境..."
-if [ -d "$VENV_DIR" ]; then
+if [ -f "$VENV_DIR/bin/activate" ]; then
     echo "   ✓ 虚拟环境已存在，跳过"
 else
+    # Clean up leftover broken venv from a previous failed run
+    rm -rf "$VENV_DIR"
     # ensurepip is not always available on minimal VPS installs
     if ! python3 -c "import ensurepip" 2>/dev/null; then
         echo "   - 缺少 python3-venv，尝试安装..."
