@@ -12,8 +12,20 @@ echo " TradingAgents-Astock VPS 部署"
 echo "============================================"
 echo ""
 
-# ── 1. 检查 Python 版本 ──────────────────────────────────────────
-echo "[1/6] 检查 Python 版本..."
+# ── 1. 安装系统依赖 ──────────────────────────────────────────────
+echo "[1/7] 安装系统依赖（中文字体）..."
+if command -v apt &>/dev/null; then
+    sudo apt update -qq && sudo apt install -y -qq fonts-wqy-microhei 2>/dev/null && echo "   ✓ fonts-wqy-microhei 已安装" || echo "   - 字体包安装失败（不影响运行，PDF 可能缺中文）"
+elif command -v yum &>/dev/null; then
+    sudo yum install -y wqy-microhei-fonts 2>/dev/null && echo "   ✓ wqy-microhei-fonts 已安装" || echo "   - 字体包安装失败"
+elif command -v dnf &>/dev/null; then
+    sudo dnf install -y wqy-microhei-fonts 2>/dev/null && echo "   ✓ wqy-microhei-fonts 已安装" || echo "   - 字体包安装失败"
+else
+    echo "   - 未检测到包管理器，跳过（PDF 可能缺中文）"
+fi
+
+# ── 2. 检查 Python 版本 ──────────────────────────────────────────
+echo "[2/7] 检查 Python 版本..."
 PYTHON_VERSION="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 python3 -c "import sys; assert sys.version_info >= (3, 10), 'Python 3.10+ required'" 2>/dev/null || {
     echo "❌ 需要 Python 3.10+，当前版本: $(python3 --version 2>&1)"
@@ -24,7 +36,7 @@ python3 -c "import sys; assert sys.version_info >= (3, 10), 'Python 3.10+ requir
 echo "   ✓ $(python3 --version)"
 
 # ── 2. 创建虚拟环境 ──────────────────────────────────────────────
-echo "[2/6] 创建虚拟环境..."
+echo "[3/7] 创建虚拟环境..."
 if [ -f "$VENV_DIR/bin/activate" ]; then
     echo "   ✓ 虚拟环境已存在，跳过"
 else
@@ -52,13 +64,13 @@ fi
 source "$VENV_DIR/bin/activate"
 
 # ── 3. 安装依赖 ──────────────────────────────────────────────────
-echo "[3/6] 安装 Python 依赖..."
+echo "[4/7] 安装 Python 依赖..."
 pip install --upgrade pip -q
 pip install -r "$PROJECT_DIR/requirements.txt" -q
 echo "   ✓ 依赖安装完成"
 
 # ── 4. 配置环境变量 ──────────────────────────────────────────────
-echo "[4/6] 配置 .env..."
+echo "[5/7] 配置 .env..."
 if [ ! -f "$PROJECT_DIR/.env" ]; then
     if [ -f "$PROJECT_DIR/.env.example" ]; then
         cp "$PROJECT_DIR/.env.example" "$PROJECT_DIR/.env"
@@ -77,7 +89,7 @@ fi
 
 # ── 5. 安装 systemd 服务（可选）──────────────────────────────────
 SERVICE_FILE="/etc/systemd/system/tradingagents.service"
-echo "[5/6] systemd 服务..."
+echo "[6/7] systemd 服务..."
 if [ -f "$SERVICE_FILE" ]; then
     echo "   ✓ 服务文件已存在，跳过"
 elif command -v systemctl &>/dev/null; then
@@ -122,7 +134,7 @@ else
 fi
 
 # ── 6. 完成 ──────────────────────────────────────────────────────
-echo "[6/6] 部署完成!"
+echo "[7/7] 部署完成!"
 echo ""
 echo "============================================"
 echo " 启动方式"

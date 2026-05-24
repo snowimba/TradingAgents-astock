@@ -11,11 +11,22 @@ from fpdf import FPDF
 
 
 _FONT_CANDIDATES = [
+    # macOS
     "/System/Library/Fonts/PingFang.ttc",
     "/System/Library/Fonts/STHeiti Light.ttc",
-    "/usr/share/fonts/truetype/noto/NotoSansSC-Regular.ttf",
-    "/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
+    # Ubuntu / Debian — fonts-noto-cjk
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
+    "/usr/share/fonts/noto/NotoSansSC-Regular.ttf",
+    # Ubuntu / Debian — fonts-wqy-microhei
+    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+    # Ubuntu / Debian — fonts-wqy-zenhei
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+    # Fallback: any CJK font shipped with fpdf2 or system
+    "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+    "/usr/share/fonts/truetype/arphic/uming.ttc",
+    "/usr/share/fonts/truetype/arphic/ukai.ttc",
 ]
 
 
