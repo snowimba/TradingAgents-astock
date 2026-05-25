@@ -111,6 +111,7 @@ _PASSTHROUGH_KWARGS = (
 
 # Provider base URLs and API key env vars
 _PROVIDER_CONFIG = {
+    "openai": ("https://api.openai.com/v1", "OPENAI_API_KEY"),
     "xai": ("https://api.x.ai/v1", "XAI_API_KEY"),
     "deepseek": ("https://api.deepseek.com", "DEEPSEEK_API_KEY"),
     "qwen": ("https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "DASHSCOPE_API_KEY"),
@@ -119,6 +120,12 @@ _PROVIDER_CONFIG = {
     "ollama": ("http://localhost:11434/v1", None),
     "minimax": ("https://api.minimax.chat/v1", "MINIMAX_API_KEY"),
 }
+
+# Snapshot OPENAI_API_KEY at import time so we can restore it after
+# a non-OpenAI provider overwrites the env var (ChatOpenAI defaults to
+# os.environ["OPENAI_API_KEY"], which would otherwise send the wrong
+# key when the user switches providers).
+_ORIGINAL_OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 
 class OpenAIClient(BaseLLMClient):
@@ -148,13 +155,24 @@ class OpenAIClient(BaseLLMClient):
         # Provider-specific base URL and auth. An explicit base_url on the
         # client (e.g. a corporate proxy) takes precedence over the
         # provider default so users can route through their own gateway.
+        #
+        # ChatOpenAI ignores an explicit ``api_key`` kwarg and falls back
+        # to os.environ["OPENAI_API_KEY"] in some langchain-openai versions.
+        # To guarantee the right key reaches every provider we overwrite
+        # OPENAI_API_KEY in the environment, using a snapshot of the
+        # original value at import time to restore it for the native
+        # OpenAI provider.
         if self.provider in _PROVIDER_CONFIG:
             default_base, api_key_env = _PROVIDER_CONFIG[self.provider]
             llm_kwargs["base_url"] = self.base_url or default_base
             if api_key_env:
-                api_key = os.environ.get(api_key_env)
+                if api_key_env == "OPENAI_API_KEY":
+                    api_key = _ORIGINAL_OPENAI_API_KEY
+                else:
+                    api_key = os.environ.get(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
+                    os.environ["OPENAI_API_KEY"] = api_key
             else:
                 llm_kwargs["api_key"] = "ollama"
         elif self.base_url:
