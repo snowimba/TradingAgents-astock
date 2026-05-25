@@ -156,22 +156,31 @@ class OpenAIClient(BaseLLMClient):
         # client (e.g. a corporate proxy) takes precedence over the
         # provider default so users can route through their own gateway.
         #
-        # ChatOpenAI ignores an explicit ``api_key`` kwarg and falls back
-        # to os.environ["OPENAI_API_KEY"] in some langchain-openai versions.
-        # To guarantee the right key reaches every provider we overwrite
-        # OPENAI_API_KEY in the environment, using a snapshot of the
-        # original value at import time to restore it for the native
-        # OpenAI provider.
+        # The underlying OpenAI SDK defaults to os.environ["OPENAI_API_KEY"]
+        # when no api_key is passed. We overwrite that env var with each
+        # provider's own key so the OpenAI key can never leak to a
+        # non-OpenAI endpoint, even if ChatOpenAI ignores our explicit kwarg.
         if self.provider in _PROVIDER_CONFIG:
             default_base, api_key_env = _PROVIDER_CONFIG[self.provider]
             llm_kwargs["base_url"] = self.base_url or default_base
             if api_key_env:
                 if api_key_env == "OPENAI_API_KEY":
-                    api_key = _ORIGINAL_OPENAI_API_KEY
+                    # Snapshot captured at import time; fall back to current
+                    # env in case .env was loaded after the import.
+                    api_key = _ORIGINAL_OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY")
+                    if api_key:
+                        llm_kwargs["api_key"] = api_key
                 else:
                     api_key = os.environ.get(api_key_env)
-                if api_key:
+                    if not api_key:
+                        raise ValueError(
+                            f"使用 {self.provider} 供应商需要设置 {api_key_env} "
+                            f"环境变量，请在 .env 文件中配置。"
+                        )
                     llm_kwargs["api_key"] = api_key
+                    # Overwrite OPENAI_API_KEY so the OpenAI SDK client
+                    # (which defaults to that env var) always gets this
+                    # provider's key even if it ignores our explicit kwarg.
                     os.environ["OPENAI_API_KEY"] = api_key
             else:
                 llm_kwargs["api_key"] = "ollama"
